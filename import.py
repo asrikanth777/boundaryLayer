@@ -58,3 +58,11 @@ grouped_imports = group_Imports()
 groupDisplay = Show(grouped_imports, renderView1)
 renderView1.Update()
 
+# next steps
+# ----1) make multiple plot over line of x-axis lines
+# ----2) get tangential components
+#           + first calculate tangential direction along wall
+#           + curved wall so more complex calc needed
+#           + then find Ut
+
+# more to add but this is from chat, need to cross-validate.
