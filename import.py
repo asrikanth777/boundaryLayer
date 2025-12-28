@@ -58,6 +58,17 @@ grouped_imports = group_Imports()
 groupDisplay = Show(grouped_imports, renderView1)
 renderView1.Update()
 
+# create a new 'Plot Over Line'
+plotOverLine1 = PlotOverLine(registrationName='PlotOverLine1', Input=grouped_imports)
+plotOverLine1.Point1 = [0.401885, 0.0, 0.0]
+plotOverLine1.Point2 = [0.6, 0.0, 0.0]
+
+# Create a new 'Line Chart View'
+lineChartView1 = CreateView('XYChartView')
+
+# show data in view
+plotOverLine1Display_1 = Show(plotOverLine1, lineChartView1, 'XYChartRepresentation')
+
 # next steps
 # ----1) make multiple plot over line of x-axis lines
 # ----2) get tangential components
