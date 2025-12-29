@@ -62,12 +62,20 @@ renderView1.Update()
 plotOverLine1 = PlotOverLine(registrationName='PlotOverLine1', Input=grouped_imports)
 plotOverLine1.Point1 = [0.401885, 0.0, 0.0]
 plotOverLine1.Point2 = [0.6, 0.0, 0.0]
+plotOverLine1.UpdatePipeline()
 
 # Create a new 'Line Chart View'
 lineChartView1 = CreateView('XYChartView')
 
 # show data in view
 plotOverLine1Display_1 = Show(plotOverLine1, lineChartView1, 'XYChartRepresentation')
+layout1 = GetLayoutByName("Layout #1")
+AssignViewToLayout(view=lineChartView1, layout=layout1, hint=0)
+renderView1.Update()
+lineChartView1.Update()
+plotOverLine1Display_1.SeriesVisibility = ['v_Magnitude']
+
+
 
 # next steps
 # ----1) make multiple plot over line of x-axis lines
