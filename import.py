@@ -85,3 +85,7 @@ plotOverLine1Display_1.SeriesVisibility = ['v_Magnitude']
 #           + then find Ut
 
 # more to add but this is from chat, need to cross-validate.
+
+# edge of the boundary layer as the inflection point of dv/dy velocity in the x direction
+# refer to paper on more details about this
+# need to trace the surface of the sample
