@@ -89,3 +89,10 @@ plotOverLine1Display_1.SeriesVisibility = ['v_Magnitude']
 # edge of the boundary layer as the inflection point of dv/dy velocity in the x direction
 # refer to paper on more details about this
 # need to trace the surface of the sample
+
+
+# jan 4 2025
+# current setup after group datasets
+# CleanToGrid -> ExtractSurface -> FeatureEdges
+
+# currently, i dont think importing all blocks will work i and i will have to do with just the one with the sample.
