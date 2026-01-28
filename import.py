@@ -1,98 +1,63 @@
 from pathlib import Path
 from paraview.simple import *
+import pandas as pd
 import re
 import os
 
+base = Path.cwd()
+
+
 paraview.simple._DisableFirstRenderCameraReset()
 
-def group_Imports():
+def getImport():
     sources = GetSources()
-    import_list = []
+    object = []
 
     for key, src in list(sources.items()):
-        import_list.append(src)
+        object.append(src)
 
-    groupImports = GroupDatasets(Input=import_list)
-    return groupImports
+    # groupImports = GroupDatasets(Input=import_list)
+    # return groupImports
+    return object[0]
 
-base = Path.cwd()
-print(base)
-name = input("name for folder with pvts and vts")
-folder = base / name
-print(folder)
-
-# collects all pvts and vts files 
-pvts_files = sorted(folder.glob("*.pvts"))
-print("pvts files: ", [f.name for f in pvts_files])
-vts_files  = sorted(folder.glob("*.vts"))
-print("vts files: ", [f.name for f in vts_files])
-
-
-pvts_num = [f.stem[-1:] for f in pvts_files]
-pvts_stems = [f.stem for f in pvts_files]
-
-import_vts = []
-for files in vts_files:
-    if int(files.stem[-1]) > 5 and not any(files.stem.endswith(stem) for stem in pvts_stems):
-        import_vts.append(files)
-
-print(f"import vts files: {import_vts}")
-
-
-import_pvts = []
-for files in pvts_files:
-    if int(files.stem[-1]) > 5:
-        import_pvts.append(files)
-
-print(f"import pvts files: {import_pvts}")
-
-
-import_stems = [f.stem for f in import_vts]
-
-pvts_readers = [XMLPartitionedStructuredGridReader(FileName=str(f)) for f in pvts_files]
-vts_readers  = [XMLStructuredGridReader(FileName=str(f)) for f in import_vts]
+flowfield = getImport()
+cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
+cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'v']
 
 renderView1 = GetActiveViewOrCreate('RenderView')
+cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 
-grouped_imports = group_Imports()
-groupDisplay = Show(grouped_imports, renderView1)
+Hide(flowfield, renderView1)
 renderView1.Update()
 
-# create a new 'Plot Over Line'
-plotOverLine1 = PlotOverLine(registrationName='PlotOverLine1', Input=grouped_imports)
-plotOverLine1.Point1 = [0.401885, 0.0, 0.0]
-plotOverLine1.Point2 = [0.6, 0.0, 0.0]
-plotOverLine1.UpdatePipeline()
+calculator1 = Calculator(Input=cellDatatoPointData1)
+calculator1.Function = 'v_X*iHat + v_Y*jHat'
+calculator1Display = Show(calculator1, renderView1)
 
-# Create a new 'Line Chart View'
-lineChartView1 = CreateView('XYChartView')
-
-# show data in view
-plotOverLine1Display_1 = Show(plotOverLine1, lineChartView1, 'XYChartRepresentation')
-layout1 = GetLayoutByName("Layout #1")
-AssignViewToLayout(view=lineChartView1, layout=layout1, hint=0)
+Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
-lineChartView1.Update()
-plotOverLine1Display_1.SeriesVisibility = ['v_Magnitude']
 
+computeDerivatives1 = ComputeDerivatives(Input = calculator1)
+computeDerivatives1.Vectors = ['POINTS', 'Result']
+computeDerivatives1Display = Show(computeDerivatives1, renderView1)
 
+Hide(calculator1, renderView1)
+renderView1.Update()
 
-# next steps
-# ----1) make multiple plot over line of x-axis lines
-# ----2) get tangential components
-#           + first calculate tangential direction along wall
-#           + curved wall so more complex calc needed
-#           + then find Ut
+plotOverLine1 = PlotOverLine(Input=computeDerivatives1, Source='High Resolution Line Source')
+plotOverLine1.Source.Point1 = [0.5, 0, 0]
+plotOverLine1.Source.Point2 = [0.6, 0, 0]
+plotOverLine1Display = Show(plotOverLine1, renderView1)
 
-# more to add but this is from chat, need to cross-validate.
+CreateLayout('Layout #2')
+SetActiveView(None)
+spreadSheetView1 = CreateView('SpreadSheetView')
+spreadSheetView1.ColumnToSort = ''
+spreadSheetView1.BlockSize = 1024
+plotOverLine1Display_2 = Show(plotOverLine1, spreadSheetView1)
+layout2 = GetLayoutByName("Layout #2")
+AssignViewToLayout(view=spreadSheetView1, layout=layout2, hint=0)
+ExportView(str(base) + '/something.csv', view=spreadSheetView1)
 
-# edge of the boundary layer as the inflection point of dv/dy velocity in the x direction
-# refer to paper on more details about this
-# need to trace the surface of the sample
-
-
-# jan 4 2025
-# current setup after group datasets
-# CleanToGrid -> ExtractSurface -> FeatureEdges
-
-# currently, i dont think importing all blocks will work i and i will have to do with just the one with the sample.
+csvImport = pd.read_csv("something.csv")
+csvForEdit = csvImport.dropna()
