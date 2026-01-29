@@ -5,6 +5,8 @@ import re
 import os
 import matplotlib.pyplot as plt 
 import numpy as np
+from scipy.signal import savgol_filter
+
 
 
 # this stuff gets current working directory

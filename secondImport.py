@@ -6,7 +6,6 @@ import os
 import matplotlib.pyplot as plt 
 import numpy as np
 
-
 from paraview import servermanager
 from vtk.util import numpy_support as ns
 import numpy as np
@@ -129,4 +128,55 @@ plt.ylabel("dv2/dydx")
 plt.show()
 
 
+"""
+import numpy as np
 
+def smooth_knn_poly(x, y, k=51, degree=2):
+    """
+#    Smooth y(x) on irregular x using k-nearest-neighbors local polynomial regression.
+#    Returns y_smooth at the same x points (no resampling).
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    # sort by x
+    idx = np.argsort(x)
+    x = x[idx]
+    y = y[idx]
+
+    n = len(x)
+    y_s = np.empty(n)
+
+    # precompute neighbor indices by distance in x
+    for i in range(n):
+        # distances to all points (1D so cheap enough for ~5k)
+        d = np.abs(x - x[i])
+        nn = np.argpartition(d, kth=min(k, n-1))[:k]  # k nearest indices
+        nn = nn[np.argsort(x[nn])]  # sort neighbors by x
+
+        xw = x[nn] - x[i]           # center at x_i improves conditioning
+        yw = y[nn]
+
+        # weights: closer points matter more (avoid zero bandwidth)
+        h = np.max(np.abs(xw))
+        if h == 0:
+            y_s[i] = y[i]
+            continue
+        w = np.exp(-0.5 * (xw / (0.35*h))**2)
+
+        # design matrix for polynomial in (x - x_i)
+        # columns: 1, x, x^2, ...
+        A = np.vstack([xw**p for p in range(degree+1)]).T
+
+        # weighted least squares
+        W = np.sqrt(w)
+        Aw = A * W[:, None]
+        yw2 = yw * W
+        coeff, *_ = np.linalg.lstsq(Aw, yw2, rcond=None)
+
+        # value at x_i is polynomial at 0 => coeff[0]
+        y_s[i] = coeff[0]
+
+    return x, y_s  # returns sorted x and smoothed y
+
+"""
