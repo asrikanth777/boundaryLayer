@@ -63,78 +63,70 @@ renderView1.Update()
 # plots over line along stagnation point, this will be used to find inflection point
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
 plotOverLine1.Source.Point1 = [0.5, 0, 0]
-plotOverLine1.Source.Point2 = [0.6, 0, 0]
+plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
 
 
 
+# data = servermanager.Fetch(plotOverLine1)
+# pd = data.GetPointData()
+# print([pd.GetArrayName(i) for i in range(pd.GetNumberOfArrays())])
+
+
+# pts_vtk = data.GetPoints()
+
+# print("VTK points object:", pts_vtk)
+# print("Number of points:", pts_vtk.GetNumberOfPoints())
+
+
+# arr = pd.GetArray("VectorGradient")
+# print("VectorGradient components:", arr.GetNumberOfComponents())
+# print("VectorGradient tuples:", arr.GetNumberOfTuples())
+
+# vg = ns.vtk_to_numpy(arr)
+# print("numpy shape:", vg.shape)   # (N, ncomp)
+
+# dvdy = vg[:,4]
+
+# Fetch output of PlotOverLine
+
 data = servermanager.Fetch(plotOverLine1)
-pd = data.GetPointData()
-print([pd.GetArrayName(i) for i in range(pd.GetNumberOfArrays())])
+
+# ---- coordinates (Points_0/1/2) ----
+pts = ns.vtk_to_numpy(data.GetPoints().GetData())
+x = pts[:, 0]
+y = pts[:, 1]  # if you need it
+
+# ---- point-data arrays ----
+point_data = data.GetPointData()
+print([point_data.GetArrayName(i) for i in range(point_data.GetNumberOfArrays())])
+
+# ---- VectorGradient and dvdy component ----
+arr = point_data.GetArray("VectorGradient")
+vg = ns.vtk_to_numpy(arr)          # shape (N, 9)
+dvdy = vg[:, 4]                    # VectorGradient_4
+
+# ---- drop NaNs (keep alignment with x) ----
+mask = np.isfinite(x) & np.isfinite(dvdy)   # isfinite handles inf too
+x = x[mask]
+dvdy = dvdy[mask]
+
+# ---- sort by x (critical before any derivative) ----
+idx = np.argsort(x)
+x = x[idx]
+dvdy = dvdy[idx]
+
+print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
+
+final_grad = np.diff(dvdy)/np.diff(x)
+x = np.delete(x, 0)
+
+plt.figure()
+plt.plot(x, final_grad)
+plt.xlabel("x_direction")
+plt.ylabel("dv2/dydx")
+plt.show()
 
 
-pts_vtk = data.GetPoints()
-
-print("VTK points object:", pts_vtk)
-print("Number of points:", pts_vtk.GetNumberOfPoints())
-
-
-arr = pd.GetArray("VectorGradient")
-print("VectorGradient components:", arr.GetNumberOfComponents())
-print("VectorGradient tuples:", arr.GetNumberOfTuples())
-
-vg = ns.vtk_to_numpy(arr)
-print("numpy shape:", vg.shape)   # (N, ncomp)
-
-
-
-# # spreadsheet view to export points on line as csv
-# CreateLayout('Layout #2')
-# SetActiveView(None)
-# spreadSheetView1 = CreateView('SpreadSheetView')
-# spreadSheetView1.ColumnToSort = ''
-# spreadSheetView1.BlockSize = 1024
-# plotOverLine1Display_2 = Show(plotOverLine1, spreadSheetView1)
-# layout2 = GetLayoutByName("Layout #2")
-# AssignViewToLayout(view=spreadSheetView1, layout=layout2, hint=0)
-# ExportView(str(base) + '/something.csv', view=spreadSheetView1)
-
-# # reads csv and drops nan columns
-# csvImport = pd.read_csv("something.csv")
-# csvForEdit1 = csvImport.dropna()
-# csvForEdit2 = csvForEdit1.reset_index(drop=True)
-# csvForEdit2.to_csv('droppednan.csv', index=False)
-
-
-# x = csvForEdit2["Points_0"]
-# y = csvForEdit2["VectorGradient_4"]
-
-# # plt.figure()
-# # plt.plot(x, y)
-# # plt.xlabel("x_direction")
-# # plt.ylabel("dv/dy")
-# # plt.show()
-
-# x_np = np.array(x)
-# y_np = np.array(y)
-# final_grad = np.diff(y_np)/np.diff(x_np)
-# x_np = np.delete(x_np, 0)
-# # final_grad = np.gradient(y_np, x_np)
-
-# plt.figure()
-# plt.plot(x_np, final_grad)
-# plt.xlabel("x_direction")
-# plt.ylabel("dv2/dydx")
-# plt.show()
-
-
-
-
-# # plt.figure()
-# # plt.plot(x, y, label="dv/dy")
-# # plt.plot(x_np, final_grad, label="d/dx(dv/dy)")
-# # plt.xlabel("x_direction")
-# # plt.legend()
-# # plt.show()
 
