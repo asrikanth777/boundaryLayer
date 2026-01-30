@@ -1,3 +1,12 @@
+"""
+Docstring for boundaryLayer.plotoverlinePARAVIEW
+
+Used to test smoothing functions, but when coupled
+with paraview, it crashes
+
+"""
+
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 

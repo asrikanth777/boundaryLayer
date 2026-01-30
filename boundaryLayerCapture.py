@@ -1,19 +1,14 @@
 from pathlib import Path
 from paraview.simple import *
-import pandas as pd
-import re
-import os
+# import pandas as pd
+# import re
+# import os
 import matplotlib.pyplot as plt 
 import numpy as np
 
 from paraview import servermanager
 from vtk.util import numpy_support as ns
 import numpy as np
-
-
-
-# this stuff gets current working directory
-base = Path.cwd()
 
 
 paraview.simple._DisableFirstRenderCameraReset()
@@ -66,117 +61,96 @@ plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
 
-
-
-# data = servermanager.Fetch(plotOverLine1)
-# pd = data.GetPointData()
-# print([pd.GetArrayName(i) for i in range(pd.GetNumberOfArrays())])
-
-
-# pts_vtk = data.GetPoints()
-
-# print("VTK points object:", pts_vtk)
-# print("Number of points:", pts_vtk.GetNumberOfPoints())
-
-
-# arr = pd.GetArray("VectorGradient")
-# print("VectorGradient components:", arr.GetNumberOfComponents())
-# print("VectorGradient tuples:", arr.GetNumberOfTuples())
-
-# vg = ns.vtk_to_numpy(arr)
-# print("numpy shape:", vg.shape)   # (N, ncomp)
-
-# dvdy = vg[:,4]
-
-# Fetch output of PlotOverLine
-
+# gets coordinate data from plot over line and converts to numpy arrays
+#
+#
 data = servermanager.Fetch(plotOverLine1)
-
-# ---- coordinates (Points_0/1/2) ----
 pts = ns.vtk_to_numpy(data.GetPoints().GetData())
 x = pts[:, 0]
-y = pts[:, 1]  # if you need it
 
-# ---- point-data arrays ----
+
+# gets point data along line and grabs dvdy numpy array
+#
+#
 point_data = data.GetPointData()
-print([point_data.GetArrayName(i) for i in range(point_data.GetNumberOfArrays())])
-
-# ---- VectorGradient and dvdy component ----
+# print([point_data.GetArrayName(i) for i in range(point_data.GetNumberOfArrays())])
 arr = point_data.GetArray("VectorGradient")
 vg = ns.vtk_to_numpy(arr)          # shape (N, 9)
 dvdy = vg[:, 4]                    # VectorGradient_4
 
-# ---- drop NaNs (keep alignment with x) ----
-mask = np.isfinite(x) & np.isfinite(dvdy)   # isfinite handles inf too
+# drops nan values
+#
+#
+mask = np.isfinite(x) & np.isfinite(dvdy)   
 x = x[mask]
 dvdy = dvdy[mask]
-
-# ---- sort by x (critical before any derivative) ----
 idx = np.argsort(x)
 x = x[idx]
 dvdy = dvdy[idx]
 
-print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
+# print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
 
+
+# smoothing function for prettier line
+#
+#
+window_size = 11
+x_smooth = np.convolve(x, np.ones(window_size)/window_size, mode='valid')
+dvdy_smooth = np.convolve(dvdy, np.ones(window_size)/window_size, mode='valid')
+
+# calculates dv2/dxdy
+#
+#
 final_grad = np.diff(dvdy)/np.diff(x)
+fg_smooth = np.diff(dvdy_smooth)/np.diff(x_smooth)
+
+# for matching array sizes
+#
+#
 x = np.delete(x, 0)
+x_smooth = np.delete(x_smooth, 0)
+
+# extracts only later 1/3 of the data
+# to get inflection point
+#
+#
+size = final_grad.shape
+#print(size)
+size = int(size[0])
+#print(type(size))
+side = int(2/3*size)
+#print(side)
+
+examine = x_smooth[side:]
+check = fg_smooth[side:]
+
+# tries to find inflection point by smallest distance from zero
+#
+#
+dist = [abs(val - 0) for val in check]
+bound = min(dist)
+indx = dist.index(bound)
+# print("Where the inflection point is:")
+# print(examine[indx])
+bl_thickness = examine[-1] - examine[indx]
+# print("How thick the boundary layer is:")
+# print(bl_thickness)
+
+
+# plots it for visualization
+#
+#
+location = f"Inflection Point: {examine[indx]}m"
+bl_plot = f"Boundary Layer Thickness: {bl_thickness * 1000}mm"
 
 plt.figure()
-plt.plot(x, final_grad)
+# plt.plot(x, final_grad) this is the raw data plot
+plt.plot(x, np.zeros_like(final_grad))
+plt.plot(examine[indx], check[indx], 'ro') 
+plt.title("Boundary Layer Capture")
+plt.figtext(0.5, 0.5, location, ha="center", fontsize=11)
+plt.figtext(0.5, 0.45, bl_plot, ha="center", fontsize=11)
+plt.plot(x_smooth, fg_smooth)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
-
-
-"""
-import numpy as np
-
-def smooth_knn_poly(x, y, k=51, degree=2):
-    """
-#    Smooth y(x) on irregular x using k-nearest-neighbors local polynomial regression.
-#    Returns y_smooth at the same x points (no resampling).
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-
-    # sort by x
-    idx = np.argsort(x)
-    x = x[idx]
-    y = y[idx]
-
-    n = len(x)
-    y_s = np.empty(n)
-
-    # precompute neighbor indices by distance in x
-    for i in range(n):
-        # distances to all points (1D so cheap enough for ~5k)
-        d = np.abs(x - x[i])
-        nn = np.argpartition(d, kth=min(k, n-1))[:k]  # k nearest indices
-        nn = nn[np.argsort(x[nn])]  # sort neighbors by x
-
-        xw = x[nn] - x[i]           # center at x_i improves conditioning
-        yw = y[nn]
-
-        # weights: closer points matter more (avoid zero bandwidth)
-        h = np.max(np.abs(xw))
-        if h == 0:
-            y_s[i] = y[i]
-            continue
-        w = np.exp(-0.5 * (xw / (0.35*h))**2)
-
-        # design matrix for polynomial in (x - x_i)
-        # columns: 1, x, x^2, ...
-        A = np.vstack([xw**p for p in range(degree+1)]).T
-
-        # weighted least squares
-        W = np.sqrt(w)
-        Aw = A * W[:, None]
-        yw2 = yw * W
-        coeff, *_ = np.linalg.lstsq(Aw, yw2, rcond=None)
-
-        # value at x_i is polynomial at 0 => coeff[0]
-        y_s[i] = coeff[0]
-
-    return x, y_s  # returns sorted x and smoothed y
-
-"""

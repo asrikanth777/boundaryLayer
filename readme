@@ -1,1 +1,9 @@
 this is to extract boundary layer data from plasmatron with sample cfds
+
+should be good out of the box
+
+only issue is that it doesnt get the perfect point along zero
+this is due to mesh quality
+
+could add interpolation function if needed
+but it is "close enough"

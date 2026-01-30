@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import savgol_filter
 
+"""
+This causes paraview to crash for some reason???
+Keeping it just in case, but secondImport is the working one
+
+"""
 
 
 # this stuff gets current working directory
@@ -80,35 +85,37 @@ csvForEdit1 = csvImport.dropna()
 csvForEdit2 = csvForEdit1.reset_index(drop=True)
 csvForEdit2.to_csv('droppednan.csv', index=False)
 
+df = pd.read_csv("droppednan.csv")
 
-x = csvForEdit2["Points_0"]
-y = csvForEdit2["VectorGradient_4"]
 
-# plt.figure()
-# plt.plot(x, y)
-# plt.xlabel("x_direction")
-# plt.ylabel("dv/dy")
-# plt.show()
+x = df["Points_0"]
+y = df["VectorGradient_4"]
+
+df['du_dy_smooth'] = df['VectorGradient_4'].rolling(window=25, center=True).mean()
+df['x_smooth'] = df['Points_0'].rolling(window=25, center=True).mean()
+
+y_smooth = df['du_dy_smooth']
+x_smooth = df['x_smooth']
 
 x_np = np.array(x)
 y_np = np.array(y)
+
+x_smooth_np = np.array(x_smooth)
+y_smooth_np = np.array(y_smooth)
+
 final_grad = np.diff(y_np)/np.diff(x_np)
+
+fg = np.diff(y_smooth_np)/np.diff(x_smooth_np)
 x_np = np.delete(x_np, 0)
-# final_grad = np.gradient(y_np, x_np)
+x_smooth_np1 = np.delete(x_smooth_np, 0)
+
 
 plt.figure()
 plt.plot(x_np, final_grad)
+plt.plot(x_smooth_np1, fg)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
 
 
-
-
-# plt.figure()
-# plt.plot(x, y, label="dv/dy")
-# plt.plot(x_np, final_grad, label="d/dx(dv/dy)")
-# plt.xlabel("x_direction")
-# plt.legend()
-# plt.show()
 
