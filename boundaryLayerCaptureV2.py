@@ -81,6 +81,11 @@ dvdy = vg[:, 4]                    # VectorGradient_4
 temp = point_data.GetArray("T")
 tempNP = ns.vtk_to_numpy(temp)
 
+v = point_data.GetArray("v")
+vNP = ns.vtk_to_numpy(v)
+print(vNP.shape)
+vU = vNP[:, 0]
+
 # drops nan values
 #
 #
@@ -91,6 +96,7 @@ idx = np.argsort(x)
 x = x[idx]
 dvdy = dvdy[idx]
 tempNP = tempNP[idx]
+vU = vU[idx]
 
 # print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
 
@@ -114,6 +120,8 @@ fg_smooth = np.diff(dvdy_smooth)/np.diff(x_smooth)
 x = np.delete(x, 0)
 x_smooth = np.delete(x_smooth, 0)
 tempNP = np.delete(tempNP, 0)
+vU = np.delete(vU, 0)
+dvdy = np.delete(dvdy, 0)
 
 # extracts only later 1/3 of the data
 # to get inflection point
@@ -154,6 +162,17 @@ plt.plot(x, tempNP)
 plt.xlabel("x_direction")
 plt.ylabel("Temperature")
 
+plt.figure()
+plt.title("Axial Velocity Profile")
+plt.plot(x, vU)
+plt.xlabel("x_direction")
+plt.ylabel("Axial Velocity")
+
+plt.figure()
+plt.title("dv/dy Profile")
+plt.plot(x,dvdy)
+plt.xlabel("x_direction")
+plt.ylabel("dv/dy")
 
 
 plt.figure()
