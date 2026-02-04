@@ -27,7 +27,7 @@ def getImport():
 # gets vts file and does celldatatopointdata
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
-cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'v']
+cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'V']
 renderView1 = GetActiveViewOrCreate('RenderView')
 cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
@@ -35,7 +35,7 @@ renderView1.Update()
 
 # applys calculator filter on celldatatopointdata to get velocity vector from scalar quantities
 calculator1 = Calculator(Input=cellDatatoPointData1)
-calculator1.Function = 'v_X*iHat + v_Y*jHat'
+calculator1.Function = 'V_X*iHat + V_Y*jHat'
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
@@ -81,7 +81,7 @@ dvdy = vg[:, 4]                    # VectorGradient_4
 temp = point_data.GetArray("T")
 tempNP = ns.vtk_to_numpy(temp)
 
-v = point_data.GetArray("v")
+v = point_data.GetArray("V")
 vNP = ns.vtk_to_numpy(v)
 print(vNP.shape)
 vU = vNP[:, 0]
@@ -104,21 +104,24 @@ vU = vU[idx]
 # smoothing function for prettier line
 #
 #
-window_size = 11
-x_smooth = np.convolve(x, np.ones(window_size)/window_size, mode='valid')
+window_size = 3
+#x_smooth = np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 dvdy_smooth = np.convolve(dvdy, np.ones(window_size)/window_size, mode='valid')
 
 # calculates dv2/dxdy
 #
 #
 final_grad = np.diff(dvdy)/np.diff(x)
-fg_smooth = np.diff(dvdy_smooth)/np.diff(x_smooth)
+x1 = x[window_size-1:]
+fg_smooth = np.diff(dvdy_smooth)/np.diff(x1)
+fg_s = np.convolve(fg_smooth, np.ones(15)/15, mode='valid')
+
 
 # for matching array sizes
 #
 #
 x = np.delete(x, 0)
-x_smooth = np.delete(x_smooth, 0)
+#x_smooth = np.delete(x_smooth, 0)
 tempNP = np.delete(tempNP, 0)
 vU = np.delete(vU, 0)
 dvdy = np.delete(dvdy, 0)
@@ -134,8 +137,8 @@ size = int(size[0])
 side = int(9/10*size)
 #print(side)
 
-examine = x_smooth[side:]
-check = fg_smooth[side:]
+examine = x1[side:]
+check = fg_s[side:]
 
 # tries to find inflection point by smallest distance from zero
 #
@@ -145,44 +148,48 @@ bound = min(dist)
 indx = dist.index(bound)
 # print("Where the inflection point is:")
 # print(examine[indx])
-bl_thickness = x[-1] - examine[indx]
+bl_thickness = examine[-1] - examine[indx]
 # print("How thick the boundary layer is:")
 # print(bl_thickness)
 
+
+#x_s = x_smooth[14:]
 
 # plots it for visualization
 #
 #
 location = f"Inflection Point: {examine[indx]}m"
 bl_plot = f"Boundary Layer Thickness: {bl_thickness * 1000}mm"
+last_val = f"Last Value from list: {examine[-1]}"
 
-plt.figure()
-plt.title("Temperature Profile")
-plt.plot(x, tempNP)
-plt.xlabel("x_direction")
-plt.ylabel("Temperature")
+# plt.figure()
+# plt.title("Temperature Profile")
+# plt.plot(x, tempNP[2:])
+# plt.xlabel("x_direction")
+# plt.ylabel("Temperature")
 
-plt.figure()
-plt.title("Axial Velocity Profile")
-plt.plot(x, vU)
-plt.xlabel("x_direction")
-plt.ylabel("Axial Velocity")
+# plt.figure()
+# plt.title("Axial Velocity Profile")
+# plt.plot(x, vU[2:])
+# plt.xlabel("x_direction")
+# plt.ylabel("Axial Velocity")
 
-plt.figure()
-plt.title("dv/dy Profile")
-plt.plot(x,dvdy)
-plt.xlabel("x_direction")
-plt.ylabel("dv/dy")
+# plt.figure()
+# plt.title("dv/dy Profile")
+# plt.plot(x,dvdy[2:])
+# plt.xlabel("x_direction")
+# plt.ylabel("dv/dy")
 
 
 plt.figure()
 # plt.plot(x, final_grad) this is the raw data plot
-plt.plot(x, np.zeros_like(final_grad))
+plt.plot(x, np.zeros_like(x))
 plt.plot(examine[indx], check[indx], 'ro') 
 plt.title("Boundary Layer Capture")
 plt.figtext(0.5, 0.5, location, ha="center", fontsize=11)
 plt.figtext(0.5, 0.45, bl_plot, ha="center", fontsize=11)
-plt.plot(x_smooth, fg_smooth)
+plt.figtext(0.5, 0.4, last_val, ha="center", fontsize=11)
+plt.plot(x1[15:], fg_s)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
