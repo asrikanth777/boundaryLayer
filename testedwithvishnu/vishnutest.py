@@ -1,9 +1,11 @@
 from pathlib import Path
 from paraview.simple import *
+# import pandas as pd
 import re
 import os
 import matplotlib.pyplot as plt 
 import numpy as np
+
 from paraview import servermanager
 from vtk.util import numpy_support as ns
 import numpy as np
@@ -11,6 +13,8 @@ import numpy as np
 
 paraview.simple._DisableFirstRenderCameraReset()
 
+# function to just select the vts file in the pipeline
+# maybe not most efficient but its a copy-paste from previous project
 def getImport():
     sources = GetSources()
     object = []
@@ -20,32 +24,23 @@ def getImport():
 
     return GroupDatasets(Input=object)
 
-H_index = 'H'
-M_index = 'M'
-T_index = 'T'
-p_index = 'p'
-rho_index = 'rho'
-v_index = 'V'
-v_x_index = 'V_X'
-v_y_index = 'V_Y'
-window_size = 3
-window_2 = 15
-
-
+# gets vts file and does celldatatopointdata
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
-cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
+cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'V']
 renderView1 = GetActiveViewOrCreate('RenderView')
 cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
 renderView1.Update()
 
+# applys calculator filter on celldatatopointdata to get velocity vector from scalar quantities
 calculator1 = Calculator(Input=cellDatatoPointData1)
-calculator1.Function = f"{v_x_index}*iHat + {v_y_index}*jHat"
+calculator1.Function = 'V_X*iHat + V_Y*jHat'
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
 
+# compute derivatives to get gradient of velocity, most important is dv/dy
 computeDerivatives1 = ComputeDerivatives(Input = calculator1)
 computeDerivatives1.Vectors = ['POINTS', 'Result']
 computeDerivatives1Display = Show(computeDerivatives1, renderView1)
@@ -59,16 +54,12 @@ cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(computeDerivatives1, renderView1)
 renderView1.Update()
 
+# plots over line along stagnation point, this will be used to find inflection point
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
 plotOverLine1.Source.Point1 = [0.4, 0, 0]
 plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
-
-"""
-THIS PART NEEDS TO BE CLEANED UP FOR SURE
-"""
-
 
 # gets coordinate data from plot over line and converts to numpy arrays
 #
@@ -87,11 +78,12 @@ vectGrad = point_data.GetArray("VectorGradient")
 vg = ns.vtk_to_numpy(vectGrad)          # shape (N, 9)
 dvdy = vg[:, 4]                    # VectorGradient_4
 
-tempData = point_data.GetArray(T_index)
-temp = ns.vtk_to_numpy(tempData)
+temp = point_data.GetArray("T")
+tempNP = ns.vtk_to_numpy(temp)
 
-v = point_data.GetArray(v_index)
+v = point_data.GetArray("V")
 vNP = ns.vtk_to_numpy(v)
+print(vNP.shape)
 vU = vNP[:, 0]
 
 # drops nan values
@@ -103,7 +95,7 @@ dvdy = dvdy[mask]
 idx = np.argsort(x)
 x = x[idx]
 dvdy = dvdy[idx]
-temp = temp[idx]
+tempNP = tempNP[idx]
 vU = vU[idx]
 
 # print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
@@ -112,31 +104,56 @@ vU = vU[idx]
 # smoothing function for prettier line
 #
 #
-
+window_size = 3
+#x_smooth = np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 dvdy_smooth = np.convolve(dvdy, np.ones(window_size)/window_size, mode='valid')
-final_grad = np.diff(dvdy)/np.diff(x)
-x_reshape = x[window_size-1:]
 
-fg_smooth = np.diff(dvdy_smooth)/np.diff(x_reshape)
-fg_s = np.convolve(fg_smooth, np.ones(window_2)/window_2, mode='valid')
-x_fg = x_reshape[1:]
-x_final = x_reshape[window_2-1:]
+# calculates dv2/dxdy
+#
+#
+final_grad = np.diff(dvdy)/np.diff(x)
+x = x[2:]
+fg_smooth = np.diff(dvdy_smooth)/np.diff(x)
+fg_s = np.convolve(fg_smooth, np.ones(15)/15, mode='valid')
+
+
 # for matching array sizes
 #
 #
+x = np.delete(x, 0)
+#x_smooth = np.delete(x_smooth, 0)
+tempNP = np.delete(tempNP, 0)
+vU = np.delete(vU, 0)
+dvdy = np.delete(dvdy, 0)
 
 # extracts only later 1/3 of the data
 # to get inflection point
 #
 #
-side    = int(0.9 * len(x_final))
-examine = x_final[side:]
-check   = fg_s[side:]
+size = final_grad.shape
+#print(size)
+size = int(size[0])
+#print(type(size))
+side = int(9/10*size)
+#print(side)
 
-indx = int(np.argmin(np.abs(check)))
+examine = x[side:]
+check = fg_s[side:]
+
+# tries to find inflection point by smallest distance from zero
+#
+#
+dist = [abs(val - 0) for val in check]
+bound = min(dist)
+indx = dist.index(bound)
+# print("Where the inflection point is:")
+# print(examine[indx])
 bl_thickness = examine[-1] - examine[indx]
+# print("How thick the boundary layer is:")
+# print(bl_thickness)
 
 
+#x_s = x_smooth[14:]
 
 # plots it for visualization
 #
@@ -144,27 +161,26 @@ bl_thickness = examine[-1] - examine[indx]
 location = f"Inflection Point: {examine[indx]}m"
 bl_plot = f"Boundary Layer Thickness: {bl_thickness * 1000}mm"
 last_val = f"Last Value from list: {examine[-1]}"
-print(x[-1])
 
 plt.figure()
 plt.title("Temperature Profile")
-plt.plot(x, temp)
+plt.plot(x, tempNP[2:])
 plt.xlabel("x_direction")
 plt.ylabel("Temperature")
 
 plt.figure()
 plt.title("Axial Velocity Profile")
-plt.plot(x, vU)
+plt.plot(x, vU[2:])
 plt.xlabel("x_direction")
 plt.ylabel("Axial Velocity")
 
 plt.figure()
 plt.title("dv/dy Profile")
-plt.plot(x, dvdy)
+plt.plot(x,dvdy[2:])
 plt.xlabel("x_direction")
 plt.ylabel("dv/dy")
 
-x = np.delete(x, 0)
+
 plt.figure()
 # plt.plot(x, final_grad) this is the raw data plot
 plt.plot(x, np.zeros_like(x))
@@ -173,8 +189,7 @@ plt.title("Boundary Layer Capture")
 plt.figtext(0.5, 0.5, location, ha="center", fontsize=11)
 plt.figtext(0.5, 0.45, bl_plot, ha="center", fontsize=11)
 plt.figtext(0.5, 0.4, last_val, ha="center", fontsize=11)
-plt.plot(x, final_grad)
+plt.plot(x[14:], fg_s)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
-

@@ -24,23 +24,32 @@ def getImport():
 
     return GroupDatasets(Input=object)
 
-# gets vts file and does celldatatopointdata
+H_index = 'H'
+M_index = 'M'
+T_index = 'T'
+p_index = 'p'
+rho_index = 'rho'
+v_index = 'V'
+v_x_index = 'V_X'
+v_y_index = 'V_Y'
+window_size = 3
+window_2 = 15
+
+
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
-cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'V']
+cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
 renderView1 = GetActiveViewOrCreate('RenderView')
 cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
 renderView1.Update()
 
-# applys calculator filter on celldatatopointdata to get velocity vector from scalar quantities
 calculator1 = Calculator(Input=cellDatatoPointData1)
-calculator1.Function = 'V_X*iHat + V_Y*jHat'
+calculator1.Function = f"{v_x_index}*iHat + {v_y_index}*jHat"
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
 
-# compute derivatives to get gradient of velocity, most important is dv/dy
 computeDerivatives1 = ComputeDerivatives(Input = calculator1)
 computeDerivatives1.Vectors = ['POINTS', 'Result']
 computeDerivatives1Display = Show(computeDerivatives1, renderView1)
@@ -54,12 +63,16 @@ cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(computeDerivatives1, renderView1)
 renderView1.Update()
 
-# plots over line along stagnation point, this will be used to find inflection point
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
 plotOverLine1.Source.Point1 = [0.4, 0, 0]
 plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
+
+"""
+THIS PART NEEDS TO BE CLEANED UP FOR SURE
+"""
+
 
 # gets coordinate data from plot over line and converts to numpy arrays
 #
@@ -78,12 +91,11 @@ vectGrad = point_data.GetArray("VectorGradient")
 vg = ns.vtk_to_numpy(vectGrad)          # shape (N, 9)
 dvdy = vg[:, 4]                    # VectorGradient_4
 
-temp = point_data.GetArray("T")
-tempNP = ns.vtk_to_numpy(temp)
+tempData = point_data.GetArray(T_index)
+temp = ns.vtk_to_numpy(tempData)
 
-v = point_data.GetArray("V")
+v = point_data.GetArray(v_index)
 vNP = ns.vtk_to_numpy(v)
-print(vNP.shape)
 vU = vNP[:, 0]
 
 # drops nan values
@@ -95,7 +107,7 @@ dvdy = dvdy[mask]
 idx = np.argsort(x)
 x = x[idx]
 dvdy = dvdy[idx]
-tempNP = tempNP[idx]
+temp = temp[idx]
 vU = vU[idx]
 
 # print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
@@ -104,7 +116,6 @@ vU = vU[idx]
 # smoothing function for prettier line
 #
 #
-window_size = 3
 #x_smooth = np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 dvdy_smooth = np.convolve(dvdy, np.ones(window_size)/window_size, mode='valid')
 
@@ -121,8 +132,7 @@ fg_s = np.convolve(fg_smooth, np.ones(15)/15, mode='valid')
 #
 #
 x = np.delete(x, 0)
-#x_smooth = np.delete(x_smooth, 0)
-tempNP = np.delete(tempNP, 0)
+temp = np.delete(temp, 0)
 vU = np.delete(vU, 0)
 dvdy = np.delete(dvdy, 0)
 
@@ -164,7 +174,7 @@ last_val = f"Last Value from list: {examine[-1]}"
 
 plt.figure()
 plt.title("Temperature Profile")
-plt.plot(x, tempNP[2:])
+plt.plot(x, temp[2:])
 plt.xlabel("x_direction")
 plt.ylabel("Temperature")
 
@@ -193,4 +203,3 @@ plt.plot(x[14:], fg_s)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
-
