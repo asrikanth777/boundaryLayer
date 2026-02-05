@@ -18,6 +18,9 @@ v_y_index = 'V_Y'
 window_size = 3
 window_2 = 15
 
+
+
+
 def setup_data(view):
     view.EnableAllAttributeArrays()
 
@@ -64,6 +67,7 @@ def render(view, width, height):
 
     idx = np.argsort(x)
     x = x[idx]; dvdy = dvdy[idx]; temp = temp[idx]; vU = vU[idx]
+
 
 
     kernel1 = np.ones(window_size) / window_size
