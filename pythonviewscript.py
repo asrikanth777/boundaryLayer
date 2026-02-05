@@ -4,8 +4,19 @@ import numpy as np
 
 
 WINDOW_SIZE = 11
-TAIL_FRAC = 0.10
+TAIL_FRAC = 0.9
 VG_COMPONENT_INDEX = 4
+
+H_index = 'H'
+M_index = 'M'
+T_index = 'T'
+p_index = 'p'
+rho_index = 'rho'
+v_index = 'V'
+v_x_index = 'V_X'
+v_y_index = 'V_Y'
+window_size = 3
+window_2 = 15
 
 def setup_data(view):
     view.EnableAllAttributeArrays()
@@ -33,90 +44,85 @@ def render(view, width, height):
     x = pts[:, 0]  # Points_0
 
     vectGrad = pd.GetArray("VectorGradient")
-    T_arr = pd.GetArray("T")
-    v_arr = pd.GetArray("v")
+    T_arr = pd.GetArray(T_index)
+    v_arr = pd.GetArray(v_index)
     if vectGrad is None or T_arr is None or v_arr is None:
         tempPLOT.text(0.5, 0.5, "Missing VectorGradient or T", ha="center", va="center", transform=tempPLOT.transAxes)
         return python_view.figure_to_image(fig)
 
     vg = vtk_to_numpy(vectGrad)
     dvdy = vg[:, VG_COMPONENT_INDEX]
-    tempNP = vtk_to_numpy(T_arr)
+    temp = vtk_to_numpy(T_arr)
     vNP = vtk_to_numpy(v_arr)
     vU = vNP[:, 0]
 
-    mask = np.isfinite(x) & np.isfinite(dvdy) & np.isfinite(tempNP)
-    x = x[mask]; dvdy = dvdy[mask]; tempNP = tempNP[mask]
+    mask = np.isfinite(x) & np.isfinite(dvdy) & np.isfinite(temp)
+    x = x[mask]; dvdy = dvdy[mask]; temp = temp[mask]; vU = vU[mask]
     if x.size < 5:
         tempPLOT.text(0.5, 0.5, "Too few valid points", ha="center", va="center", transform=tempPLOT.transAxes)
         return python_view.figure_to_image(fig)
 
     idx = np.argsort(x)
-    x = x[idx]; dvdy = dvdy[idx]; tempNP = tempNP[idx]; vU = vU[idx]
+    x = x[idx]; dvdy = dvdy[idx]; temp = temp[idx]; vU = vU[idx]
 
-    w = int(WINDOW_SIZE)
-    if w < 3: w = 3
-    if w % 2 == 0: w += 1
 
-    if x.size <= w + 2:
-        x_smooth = x.copy()
-        dvdy_smooth = dvdy.copy()
-    else:
-        kernel = np.ones(w) / w
-        x_smooth = np.convolve(x, kernel, mode="valid")
-        dvdy_smooth = np.convolve(dvdy, kernel, mode="valid")
+    kernel1 = np.ones(window_size) / window_size
+    kernel2 = np.ones(window_2) / window_2
 
+    dvdy_smooth = np.convolve(dvdy, kernel1, mode='valid')
     final_grad = np.diff(dvdy) / np.diff(x)
-    fg_smooth = np.diff(dvdy_smooth) / np.diff(x_smooth)
 
-    x_d = x[1:]
-    dvdy_d = dvdy[1:]
-    vU_d = vU[1:]
-    x_s_d = x_smooth[1:] if x_smooth.size > 1 else x_smooth
-    temp_d = tempNP[1:]
+    x = x[window_size-1:]
+    fg_smooth = np.diff(dvdy_smooth) / np.diff(x)
+    fg_s = np.convolve(fg_smooth, kernel2, mode='valid')
 
-    n = fg_smooth.size
-    side = int((1.0 - TAIL_FRAC) * n)
-    side = max(0, min(side, n-1))
+    x = np.delete(x, 0)
+    temp = np.delete(temp, 0)
+    vU = np.delete(vU, 0)
+    dvdy = np.delete(dvdy, 0)
 
-    examine = x_s_d[side:]
-    check = fg_smooth[side:]
-    indx = int(np.argmin(np.abs(check)))
+    size = final_grad.shape[0]
+    side = int(TAIL_FRAC*size)
+    examine = x[side:]
+    check = fg_s[side:]
+    dist = [abs(val-0) for val in check]
+    bound = min(dist)
+    indx = dist.index(bound)
+    bl_thickness = examine[-1] - examine[indx]
 
-    inflect_x = float(examine[indx])
-    inflect_y = float(check[indx])
-    bl_thickness = float(examine[-1] - examine[indx])
+
+
 
     tempPLOT.set_title("Temperature Profile")
-    tempPLOT.plot(x_d, temp_d)
+    tempPLOT.plot(x, temp[window_size-1:])
     tempPLOT.set_xlabel("x_direction")
     tempPLOT.set_ylabel("Temperature")
     tempPLOT.minorticks_on()
 
     dv2dxdyPLOT.set_title("Boundary Layer Capture")
-    dv2dxdyPLOT.plot(x_d, np.zeros_like(final_grad))
-    dv2dxdyPLOT.plot(x_s_d, fg_smooth)
-    dv2dxdyPLOT.plot(inflect_x, inflect_y, "ro")
+    dv2dxdyPLOT.plot(x, np.zeros_like(x))
+    dv2dxdyPLOT.plot(x[window_2-1:], fg_s)
+    dv2dxdyPLOT.plot(examine[indx], check[indx], "ro")
     dv2dxdyPLOT.set_xlabel("x_direction")
     dv2dxdyPLOT.set_ylabel("dv2/dydx")
     dv2dxdyPLOT.minorticks_on()
 
     dvdyPLOT.set_title("dv/dy Profile")
-    dvdyPLOT.plot(x_d, dvdy_d)
+    dvdyPLOT.plot(x, dvdy[window_size-1:])
     dvdyPLOT.set_xlabel("x_direction")
     dvdyPLOT.set_ylabel("dv/dy")
     dvdyPLOT.minorticks_on()
 
     uPLOT.set_title("Axial Velocity Profile")
-    uPLOT.plot(x_d, vU_d)
+    uPLOT.plot(x, vU[window_size-1:])
     uPLOT.set_xlabel("x_direction")
     uPLOT.set_ylabel("dv/dy")
     uPLOT.minorticks_on()
 
 
     dv2dxdyPLOT.text(
-        0.5, 0.95,
-        f"Inflection Point: {inflect_x:.6g} m",
+        0.5, 0.5,
+        f"Inflection Point: {examine[indx]:.6g} m",
         ha="center",
         va="top",
         transform=dv2dxdyPLOT.transAxes,
@@ -124,14 +130,13 @@ def render(view, width, height):
     )
 
     dv2dxdyPLOT.text(
-        0.5, 0.88,
+        0.5, 0.45,
         f"Boundary Layer Thickness: {bl_thickness*1000:.6g} mm",
         ha="center",
         va="top",
         transform=dv2dxdyPLOT.transAxes,
         fontsize=11
     )
-
     
     fig.tight_layout()
     return python_view.figure_to_image(fig)

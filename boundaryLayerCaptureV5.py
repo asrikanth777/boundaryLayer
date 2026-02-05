@@ -123,9 +123,9 @@ dvdy_smooth = np.convolve(dvdy, np.ones(window_size)/window_size, mode='valid')
 #
 #
 final_grad = np.diff(dvdy)/np.diff(x)
-x = x[2:]
+x = x[window_size-1:]
 fg_smooth = np.diff(dvdy_smooth)/np.diff(x)
-fg_s = np.convolve(fg_smooth, np.ones(15)/15, mode='valid')
+fg_s = np.convolve(fg_smooth, np.ones(window_2)/window_2, mode='valid')
 
 
 # for matching array sizes
@@ -174,19 +174,19 @@ last_val = f"Last Value from list: {examine[-1]}"
 
 plt.figure()
 plt.title("Temperature Profile")
-plt.plot(x, temp[2:])
+plt.plot(x, temp[window_size-1:])
 plt.xlabel("x_direction")
 plt.ylabel("Temperature")
 
 plt.figure()
 plt.title("Axial Velocity Profile")
-plt.plot(x, vU[2:])
+plt.plot(x, vU[window_size-1:])
 plt.xlabel("x_direction")
 plt.ylabel("Axial Velocity")
 
 plt.figure()
 plt.title("dv/dy Profile")
-plt.plot(x,dvdy[2:])
+plt.plot(x,dvdy[window_size-1:])
 plt.xlabel("x_direction")
 plt.ylabel("dv/dy")
 
@@ -199,7 +199,7 @@ plt.title("Boundary Layer Capture")
 plt.figtext(0.5, 0.5, location, ha="center", fontsize=11)
 plt.figtext(0.5, 0.45, bl_plot, ha="center", fontsize=11)
 plt.figtext(0.5, 0.4, last_val, ha="center", fontsize=11)
-plt.plot(x[14:], fg_s)
+plt.plot(x[window_2-1:], fg_s)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()

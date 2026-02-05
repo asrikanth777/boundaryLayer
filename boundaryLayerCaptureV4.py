@@ -16,7 +16,14 @@ boundaryLayer = base / "boundaryLayer"
 pythonScript = boundaryLayer / "pythonviewscript.py"
 
 
-
+H_index = 'H'
+M_index = 'M'
+T_index = 'T'
+p_index = 'p'
+rho_index = 'rho'
+v_index = 'V'
+v_x_index = 'V_X'
+v_y_index = 'V_Y'
 
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -31,23 +38,32 @@ def getImport():
 
     return GroupDatasets(Input=object)
 
-# gets vts file and does celldatatopointdata
+H_index = 'H'
+M_index = 'M'
+T_index = 'T'
+p_index = 'p'
+rho_index = 'rho'
+v_index = 'V'
+v_x_index = 'V_X'
+v_y_index = 'V_Y'
+window_size = 3
+window_2 = 15
+
+
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
-cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'v']
+cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
 renderView1 = GetActiveViewOrCreate('RenderView')
 cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
 renderView1.Update()
 
-# applys calculator filter on celldatatopointdata to get velocity vector from scalar quantities
 calculator1 = Calculator(Input=cellDatatoPointData1)
-calculator1.Function = 'v_X*iHat + v_Y*jHat'
+calculator1.Function = f"{v_x_index}*iHat + {v_y_index}*jHat"
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
 
-# compute derivatives to get gradient of velocity, most important is dv/dy
 computeDerivatives1 = ComputeDerivatives(Input = calculator1)
 computeDerivatives1.Vectors = ['POINTS', 'Result']
 computeDerivatives1Display = Show(computeDerivatives1, renderView1)
@@ -57,11 +73,10 @@ renderView1.Update()
 cellDatatoPointData2 = CellDatatoPointData(Input=computeDerivatives1)
 cellDatatoPointData2.CellDataArraytoprocess = ['ScalarGradient', 'VectorGradient']
 renderView1 = GetActiveViewOrCreate('RenderView')
-cellDatatoPointData2Display = Show(cellDatatoPointData2, renderView1)
+cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(computeDerivatives1, renderView1)
 renderView1.Update()
 
-# plots over line along stagnation point, this will be used to find inflection point
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
 plotOverLine1.Source.Point1 = [0.4, 0, 0]
 plotOverLine1.Source.Point2 = [0.565, 0, 0]
