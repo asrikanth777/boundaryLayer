@@ -5,18 +5,12 @@ import re
 import os
 import matplotlib.pyplot as plt 
 import numpy as np
-from scipy.signal import savgol_filter
 
-"""
-This causes paraview to crash for some reason???
-Keeping it just in case, but secondImport is the working one
+from paraview import servermanager
+from vtk.util import numpy_support as ns
+import numpy as np
 
-"""
-
-
-# this stuff gets current working directory
 base = Path.cwd()
-
 
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -29,25 +23,35 @@ def getImport():
     for key, src in list(sources.items()):
         object.append(src)
 
-    return object[0]
+    return GroupDatasets(Input=object)
 
-# gets vts file and does celldatatopointdata
+H_index = 'H'
+M_index = 'M'
+T_index = 'T'
+p_index = 'p'
+rho_index = 'rho'
+v_index = 'V'
+v_x_index = 'V_X'
+v_y_index = 'V_Y'
+window_size = 3
+window_2 = 15
+
+
+
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
-cellDatatoPointData1.CellDataArraytoprocess = ['H', 'M', 'T', 'p', 'rho', 'v']
+cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
 renderView1 = GetActiveViewOrCreate('RenderView')
 cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
 renderView1.Update()
 
-# applys calculator filter on celldatatopointdata to get velocity vector from scalar quantities
 calculator1 = Calculator(Input=cellDatatoPointData1)
-calculator1.Function = 'v_X*iHat + v_Y*jHat'
+calculator1.Function = f"{v_x_index}*iHat + {v_y_index}*jHat"
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
 
-# compute derivatives to get gradient of velocity, most important is dv/dy
 computeDerivatives1 = ComputeDerivatives(Input = calculator1)
 computeDerivatives1.Vectors = ['POINTS', 'Result']
 computeDerivatives1Display = Show(computeDerivatives1, renderView1)
@@ -61,10 +65,9 @@ cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(computeDerivatives1, renderView1)
 renderView1.Update()
 
-# plots over line along stagnation point, this will be used to find inflection point
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
-plotOverLine1.Source.Point1 = [0.5, 0, 0]
-plotOverLine1.Source.Point2 = [0.6, 0, 0]
+plotOverLine1.Source.Point1 = [0.4, 0, 0]
+plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
 
@@ -91,8 +94,9 @@ df = pd.read_csv("droppednan.csv")
 x = df["Points_0"]
 y = df["VectorGradient_4"]
 
-df['du_dy_smooth'] = df['VectorGradient_4'].rolling(window=25, center=True).mean()
-df['x_smooth'] = df['Points_0'].rolling(window=25, center=True).mean()
+df["du_dy_smooth"] = df["VectorGradient_4"].rolling(25, center=True, min_periods=1).mean()
+df["x_smooth"] = df["Points_0"].rolling(25, center=True, min_periods=1).mean()
+
 
 y_smooth = df['du_dy_smooth']
 x_smooth = df['x_smooth']
@@ -116,6 +120,3 @@ plt.plot(x_smooth_np1, fg)
 plt.xlabel("x_direction")
 plt.ylabel("dv2/dydx")
 plt.show()
-
-
-

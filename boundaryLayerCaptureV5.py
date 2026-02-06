@@ -111,6 +111,9 @@ dvdy = dvdy[idx]
 temp = temp[idx]
 vU = vU[idx]
 
+x_og = x
+
+
 # print("After cleaning: N =", x.size, "x range =", (x.min(), x.max()))
 
 
@@ -175,13 +178,13 @@ last_val = f"Last Value from list: {examine[-1]}"
 
 plt.figure()
 plt.title("Temperature Profile")
-plt.plot(x, temp[window_size-1:])
+plt.plot(x_og, temp[window_size-1:])
 plt.xlabel("x_direction")
 plt.ylabel("Temperature")
 
 plt.figure()
 plt.title("Axial Velocity Profile")
-plt.plot(x, vU[window_size-1:])
+plt.plot(x_og, vU[window_size-1:])
 plt.xlabel("x_direction")
 plt.ylabel("Axial Velocity")
 

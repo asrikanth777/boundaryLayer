@@ -2,6 +2,13 @@ from paraview import python_view
 from paraview.numpy_support import vtk_to_numpy
 import numpy as np
 
+try:
+    import pandas as pd
+    print("pandas available:", pd.__version__)
+except ImportError as e:
+    print("pandas NOT available")
+
+
 
 WINDOW_SIZE = 11
 TAIL_FRAC = 0.9
@@ -67,7 +74,7 @@ def render(view, width, height):
 
     idx = np.argsort(x)
     x = x[idx]; dvdy = dvdy[idx]; temp = temp[idx]; vU = vU[idx]
-
+    
 
 
     kernel1 = np.ones(window_size) / window_size

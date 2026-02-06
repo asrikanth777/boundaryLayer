@@ -50,6 +50,9 @@ window_size = 3
 window_2 = 15
 
 
+
+
+
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
 cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
