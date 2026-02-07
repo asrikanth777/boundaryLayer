@@ -95,8 +95,14 @@ df = pd.DataFrame({
     "u": vU
 })
 
+df = df.dropna()
+df = df.reset_index(drop=True)
+
 x = df["Points_0"]
 y = df["VectorGradient_4"]
+temperature = df["T"]
+xVelocity = df["u"]
+
 
 df["dv_dy_smooth"] = df["VectorGradient_4"].rolling(5, center=True, min_periods=1).mean()
 
@@ -106,4 +112,131 @@ x_s = np.array(x)
 grad = np.diff(y_s) / np.diff(x_s)
 grad = np.append(grad, grad[-1])
 df["grad_raw"] = grad
-x_f = x_s
+
+df["grad_smooth"] = df["grad_raw"].rolling(5, center=True, min_periods=1).mean()
+gs = df["grad_smooth"]
+
+def find_inflection(x, grad_arr, tail_frac = 0.9):
+    x = np.asarray(x, dtype=float)
+    g = np.asarray(grad_arr, dtype=float)
+
+    n = g.size
+    side = int(tail_frac * n)
+
+    x_tail = x[side:]
+    g_tail = g[side:]
+
+    # closest-to-zero (discrete)
+    idx0 = np.argmin(np.abs(g_tail))
+    location0 = x_tail[idx0]
+    yloc0 = g_tail[idx0]
+    thickness = x_tail[-1] - location0
+
+    # largest positive value (discrete)
+    max_idx = np.argmax(g_tail)
+    max_val = g_tail[max_idx]
+    max_loc = x_tail[max_idx]
+
+    return location0, yloc0, thickness, max_val, max_loc
+
+
+loc, ylc, bl, mv, ml = find_inflection(x_s, gs, tail_frac=0.9)
+
+
+results = {
+    "location": loc, 
+    "Y-loc": ylc, 
+    "bl_thickness": bl, 
+    "max_val": mv, 
+    "max_loc": ml 
+}
+
+resultsPrint = {
+    "location": f"{loc:6f}m", 
+    "Y-loc": f"{ylc:6f}m", 
+    "bl_thickness": f"{bl*1000:6f}mm", 
+    "max_val": f"{mv:6f}m" , 
+    "max_loc": f"{ml:6f}m" 
+}
+
+x_zero = results["location"]
+y_zero = results["Y-loc"]
+x_max  = results["max_loc"]
+y_max  = results["max_val"]
+
+idx = np.argmin(np.abs(x_s - x_max))
+x_mark = x_s[idx]
+y_mark = y_s[idx]
+
+
+
+print(resultsPrint)
+
+plt.figure()
+plt.plot(x, temperature)
+plt.xlabel("x")
+plt.ylabel("temperature")
+plt.grid(True, alpha=0.3)
+
+plt.figure()
+plt.plot(x,xVelocity)
+plt.xlabel("x")
+plt.ylabel("x-dir velocity")
+plt.grid(True, alpha=0.3)
+
+plt.figure()
+plt.plot(x_s, y_s, label="dv/dy", lw=2, color="0.5")
+plt.scatter(
+    x_mark, y_mark,
+    s=80, marker="x", color="k", zorder=10,
+    label="dv/dy at derivative peak x"
+)
+plt.xlabel("x")
+plt.ylabel("dv/dy")
+plt.grid(True, alpha=0.3)
+plt.legend()
+
+plt.figure()
+plt.plot(x_s, gs, label="gradient", lw=2)
+plt.axhline(0.0, color="k", lw=1, alpha=0.5)
+plt.scatter(
+    x_zero, y_zero,
+    s=70,
+    marker="x",
+    color="k",
+    zorder=10,
+    label="closest-to-zero"
+)
+plt.scatter(
+    x_max, y_max,
+    s=70,
+    marker="o",
+    facecolors="none",
+    edgecolors="k",
+    zorder=10,
+    label="max positive"
+)
+plt.xlabel("x")
+plt.ylabel("gradient")
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plt.show()

@@ -160,7 +160,7 @@ df_results = (
       .rename(columns={"index": "smoothing"})
 )
 
-print(df_results)
+
 
 # --- 5) Build marker points automatically (no manual lists) ---
 keys_to_plot = ["raw","w3","w5", "w7","w11", "w13","w15", "w19"]
