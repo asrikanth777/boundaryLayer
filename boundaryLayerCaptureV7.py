@@ -1,8 +1,5 @@
-from pathlib import Path
 from paraview.simple import *
 import pandas as pd
-import re
-import os
 import matplotlib.pyplot as plt 
 import numpy as np
 
@@ -10,7 +7,6 @@ from paraview import servermanager
 from vtk.util import numpy_support as ns
 import numpy as np
 
-base = Path.cwd()
 
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -71,52 +67,43 @@ plotOverLine1.Source.Point2 = [0.565, 0, 0]
 plotOverLine1.Source.Resolution = 5000
 plotOverLine1Display = Show(plotOverLine1, renderView1)
 
-# spreadsheet view to export points on line as csv
-CreateLayout('Layout #2')
-SetActiveView(None)
-spreadSheetView1 = CreateView('SpreadSheetView')
-spreadSheetView1.ColumnToSort = ''
-spreadSheetView1.BlockSize = 1024
-plotOverLine1Display_2 = Show(plotOverLine1, spreadSheetView1)
-layout2 = GetLayoutByName("Layout #2")
-AssignViewToLayout(view=spreadSheetView1, layout=layout2, hint=0)
-ExportView(str(base) + '/something.csv', view=spreadSheetView1)
+##############################################################################33
 
-# reads csv and drops nan columns
-csvImport = pd.read_csv("something.csv")
-csvForEdit1 = csvImport.dropna()
-csvForEdit2 = csvForEdit1.reset_index(drop=True)
-csvForEdit2.to_csv('droppednan.csv', index=False)
+data = servermanager.Fetch(plotOverLine1)
+pts = ns.vtk_to_numpy(data.GetPoints().GetData())
+Points_0 = pts[:, 0]
 
-df = pd.read_csv("droppednan.csv")
 
+point_data = data.GetPointData()
+vectGrad = point_data.GetArray("VectorGradient")
+vg = ns.vtk_to_numpy(vectGrad)          # shape (N, 9)
+VectorGradient_4 = vg[:, 4]                    # VectorGradient_4
+
+tempData = point_data.GetArray(T_index)
+temp = ns.vtk_to_numpy(tempData)
+
+v = point_data.GetArray(v_index)
+vNP = ns.vtk_to_numpy(v)
+vU = vNP[:, 0]
+
+import pandas as pd
+
+df = pd.DataFrame({
+    "Points_0": Points_0,
+    "VectorGradient_4": VectorGradient_4,
+    "T": temp,
+    "u": vU
+})
 
 x = df["Points_0"]
 y = df["VectorGradient_4"]
 
-df["du_dy_smooth"] = df["VectorGradient_4"].rolling(25, center=True, min_periods=1).mean()
-df["x_smooth"] = df["Points_0"].rolling(25, center=True, min_periods=1).mean()
+df["dv_dy_smooth"] = df["VectorGradient_4"].rolling(5, center=True, min_periods=1).mean()
 
+y_s = np.array(df["dv_dy_smooth"])
+x_s = np.array(x)
 
-y_smooth = df['du_dy_smooth']
-x_smooth = df['x_smooth']
-
-x_np = np.array(x)
-y_np = np.array(y)
-
-x_smooth_np = np.array(x_smooth)
-y_smooth_np = np.array(y_smooth)
-
-final_grad = np.diff(y_np)/np.diff(x_np)
-
-fg = np.diff(y_smooth_np)/np.diff(x_smooth_np)
-x_np = np.delete(x_np, 0)
-x_smooth_np1 = np.delete(x_smooth_np, 0)
-
-
-plt.figure()
-plt.plot(x_np, final_grad)
-plt.plot(x_smooth_np1, fg)
-plt.xlabel("x_direction")
-plt.ylabel("dv2/dydx")
-plt.show()
+grad = np.diff(y_s) / np.diff(x_s)
+grad = np.append(grad, grad[-1])
+df["grad_raw"] = grad
+x_f = x_s
