@@ -204,6 +204,19 @@ delta = x_s[-1] - x_e
 U_t = xVelocity[:3].mean()
 
 
+T1 = delta/R_B
+T2 = beta_e * R_B / U_t
+T3 = mv * R_B**2 / U_t
+
+nonDim = {
+    "NDP1" : T1,
+    "NDP2" : T2,
+    "NDP3" : T3
+}
+
+print(nonDim)
+
+
 ###################### GRAPHS ######################
 
 plt.figure()
