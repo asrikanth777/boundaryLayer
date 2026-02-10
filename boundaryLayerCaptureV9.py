@@ -8,11 +8,6 @@ from vtk.util import numpy_support as ns
 import numpy as np
 
 
-
-
-
-
-
 paraview.simple._DisableFirstRenderCameraReset()
 
 # function to just select the vts file in the pipeline
@@ -36,6 +31,8 @@ v_x_index = 'V_X'
 v_y_index = 'V_Y'
 window_size = 3
 window_2 = 15
+
+R_B = float(input("What is the radius of the sample body in meters?"))
 
 
 
@@ -177,6 +174,38 @@ y_mark = y_s[idx]
 
 print(resultsPrint)
 
+"""
+TERMS LEFT TO CALCULATE FOR NONDIMENSIONAL VALUES
+R_B =   radius of the body
+x_e =   x location inflection point of dv/dy
+        (where maximum of dv2/dxdy is)
+delta = distance from x_e to sample edge
+beta_e =  y-value of inflection point of dv/dy
+U_t =   x-direction velocity right as it exits nozzle
+
+# Need to run a second sim for these values
+U_e = velocity when it deviates from freeflow simulation
+U_s = U_t - U_e
+"""
+
+"""
+NONDIMENSIONAL VALUE CALCULATIONS
+T1 = delta/R_B
+T2 = beta_e * R_B / U_t
+T3 = d(beta_e)/dx * R_B**2 / U_t
+T4 = U_e / U_t
+T5 = U_e / U_s
+
+"""
+x_e = x_mark
+beta_e = y_mark
+
+delta = x_s[-1] - x_e
+U_t = xVelocity[:3].mean()
+
+
+###################### GRAPHS ######################
+
 plt.figure()
 plt.plot(x, temperature)
 plt.xlabel("x")
@@ -189,6 +218,8 @@ plt.xlabel("x")
 plt.ylabel("x-dir velocity")
 plt.grid(True, alpha=0.3)
 
+
+
 plt.figure()
 plt.plot(x_s, y_s, label="dv/dy", lw=2, color="0.5")
 plt.scatter(
@@ -200,6 +231,8 @@ plt.xlabel("x")
 plt.ylabel("dv/dy")
 plt.grid(True, alpha=0.3)
 plt.legend()
+
+
 
 plt.figure()
 plt.plot(x_s, gs, label="gradient", lw=2)
@@ -225,20 +258,6 @@ plt.xlabel("x")
 plt.ylabel("gradient")
 plt.legend()
 plt.grid(True, alpha=0.3)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
