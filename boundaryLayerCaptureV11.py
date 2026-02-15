@@ -1,5 +1,6 @@
 from paraview.simple import *
 import pandas as pd
+from pathlib import Path
 import matplotlib.pyplot as plt 
 import numpy as np
 
@@ -26,13 +27,48 @@ M_index = 'M'
 T_index = 'T'
 p_index = 'p'
 rho_index = 'rho'
-v_index = 'V'
-v_x_index = 'V_X'
-v_y_index = 'V_Y'
+v_index = 'v'
+v_x_index = 'v_X'
+v_y_index = 'v_Y'
 window_size = 3
 window_2 = 15
 
+R_B = float(input("What is the radius of the sample body in meters?"))
 
+base = Path.cwd()
+name = input("folder with sample")
+folder = base / name
+print(folder)
+
+# collects all pvts and vts files 
+pvts_files = sorted(folder.glob("*.pvts"))
+vts_files  = sorted(folder.glob("*.vts"))
+
+# Build a set of base stems from pvts
+# this is for checking what its importing in later and for writing outputs for csv later
+pvts_stems = [f.stem[-2:] for f in pvts_files]
+pvts_stem1 = [f.stem for f in pvts_files]
+
+# Filter vts_files: keep only those whose stem does NOT start with any pvts stem
+clean_vts = []
+for v in vts_files:
+    if not any(v.stem.endswith(stem) for stem in pvts_stems):
+        clean_vts.append(v)
+
+# read this to make sure you are importing the right things
+# if the above code is not there, it will import the pvts and the respective vts files, which arent needed
+print("PVTS:", [f.name for f in pvts_files])
+print("Filtered VTS:", [f.name for f in clean_vts])
+
+# tracks name to use for outputting csvs
+vts_stem1 = [f.stem for f in clean_vts]
+
+# Make readers and import in pvts/vts files
+pvts_readers = [XMLPartitionedStructuredGridReader(FileName=str(f)) for f in pvts_files]
+vts_readers  = [XMLStructuredGridReader(FileName=str(f)) for f in clean_vts]
+
+# renders them to use actions on them later
+renderView1 = GetActiveViewOrCreate('RenderView')
 
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
@@ -172,6 +208,54 @@ y_mark = y_s[idx]
 
 print(resultsPrint)
 
+
+df_empty = pd.read_csv("empty_chamber.csv")
+xvel_empty = df_empty["u"]
+x_empty = df_empty["Points_0"]
+
+"""
+TERMS LEFT TO CALCULATE FOR NONDIMENSIONAL VALUES
+R_B =   radius of the body
+x_e =   x location inflection point of dv/dy
+        (where maximum of dv2/dxdy is)
+delta = distance from x_e to sample edge
+beta_e =  y-value of inflection point of dv/dy
+U_t =   x-direction velocity right as it exits nozzle
+
+# Need to run a second sim for these values
+U_e = velocity when it deviates from freeflow simulation
+U_s = U_t - U_e
+"""
+
+"""
+NONDIMENSIONAL VALUE CALCULATIONS
+T1 = delta/R_B
+T2 = beta_e * R_B / U_t
+T3 = d(beta_e)/dx * R_B**2 / U_t
+T4 = U_e / U_t
+T5 = U_e / U_s
+
+"""
+x_e = x_mark
+beta_e = y_mark
+
+delta = x_s[-1] - x_e
+U_t = xVelocity[:3].mean()
+
+
+T1 = delta/R_B
+T2 = beta_e * R_B / U_t
+T3 = mv * R_B**2 / U_t
+
+nonDim = {
+    "NDP1" : T1,
+    "NDP2" : T2,
+    "NDP3" : T3
+}
+
+
+###################### GRAPHS ######################
+
 plt.figure()
 plt.plot(x, temperature)
 plt.xlabel("x")
@@ -179,10 +263,13 @@ plt.ylabel("temperature")
 plt.grid(True, alpha=0.3)
 
 plt.figure()
-plt.plot(x,xVelocity)
+# plt.plot(x,xVelocity)
+plt.plot(x_empty,xvel_empty)
 plt.xlabel("x")
 plt.ylabel("x-dir velocity")
 plt.grid(True, alpha=0.3)
+
+
 
 plt.figure()
 plt.plot(x_s, y_s, label="dv/dy", lw=2, color="0.5")
@@ -195,6 +282,8 @@ plt.xlabel("x")
 plt.ylabel("dv/dy")
 plt.grid(True, alpha=0.3)
 plt.legend()
+
+
 
 plt.figure()
 plt.plot(x_s, gs, label="gradient", lw=2)
@@ -220,20 +309,6 @@ plt.xlabel("x")
 plt.ylabel("gradient")
 plt.legend()
 plt.grid(True, alpha=0.3)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
