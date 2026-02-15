@@ -1,9 +1,7 @@
-this is to extract boundary layer data from plasmatron with sample cfds
+need to run an empty chamber simulation with same geometry and what not as i did for the one with the sample, but having issues converting the pointwise mesh to usable mesh with hegel
 
-should be good out of the box
+going to consult with vishnu on how to progress forward.
 
-only issue is that it doesnt get the perfect point along zero
-this is due to mesh quality
+this might be that my original empty chamber database sims were not great, and it makes sense since i twisted the knob on pressure in a weird way. those simulation results may actually be inaccurate, need to read more
 
-could add interpolation function if needed
-but it is "close enough"
+might have to do it once i am on the updated version of hegel.
