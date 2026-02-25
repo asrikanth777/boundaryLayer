@@ -204,6 +204,9 @@ idx = np.argmin(np.abs(x_s - x_max))
 x_mark = x_s[idx]
 y_mark = y_s[idx]
 
+idx2 = np.argmin(np.abs(x - loc))
+x_ue = x[idx2]
+y_ue = xVelocity[idx2]
 
 
 print(resultsPrint)
@@ -241,16 +244,23 @@ beta_e = y_mark
 
 delta = x_s[-1] - x_e
 U_t = xVelocity[:3].mean()
+U_e = y_ue
+U_s = U_t - U_e
 
 
 T1 = delta/R_B
 T2 = beta_e * R_B / U_t
 T3 = mv * R_B**2 / U_t
+T4 = U_e/ U_t
+T5 = U_e / U_s
+
 
 nonDim = {
     "NDP1" : T1,
     "NDP2" : T2,
-    "NDP3" : T3
+    "NDP3" : T3,
+    "NDP4" : T4,
+    "NPD5" : T5
 }
 
 
@@ -261,14 +271,20 @@ plt.plot(x, temperature)
 plt.xlabel("x")
 plt.ylabel("temperature")
 plt.grid(True, alpha=0.3)
+plt.legend()
 
 plt.figure()
-# plt.plot(x,xVelocity)
+plt.plot(x,xVelocity)
 plt.plot(x_empty,xvel_empty)
+plt.scatter(
+    x_ue, y_ue,
+    s=80, marker="x", color="k", zorder=10,
+    label="start of boundary layer"
+)
 plt.xlabel("x")
 plt.ylabel("x-dir velocity")
 plt.grid(True, alpha=0.3)
-
+plt.legend()
 
 
 plt.figure()
