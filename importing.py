@@ -135,7 +135,7 @@ df = pd.DataFrame({
 df = df.dropna()
 df = df.reset_index(drop=True)
 df.to_csv("empty_chamber.csv", index=False)
-# clear_pipeline()
+clear_pipeline()
 
 
 

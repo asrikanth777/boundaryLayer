@@ -33,10 +33,10 @@ v_y_index = 'v_Y'
 window_size = 3
 window_2 = 15
 
-R_B = float(input("What is the radius of the sample body in meters?"))
+R_B = float(input("What is the radius of the sample body in meters?\n"))
 
 base = Path.cwd()
-name = input("folder with sample")
+name = input("folder with sample\n")
 folder = base / name
 print(folder)
 
@@ -189,10 +189,10 @@ results = {
 
 resultsPrint = {
     "location": f"{loc:6f}m", 
-    "Y-loc": f"{ylc:6f}m", 
+    "Y-loc": f"{ylc:6f}", 
     "bl_thickness": f"{bl*1000:6f}mm", 
-    "max_val": f"{mv:6f}m" , 
-    "max_loc": f"{ml:6f}m" 
+    "max_loc": f"{ml:6f}m" ,
+    "max_val": f"{mv:6f}" , 
 }
 
 x_zero = results["location"]
@@ -263,19 +263,21 @@ nonDim = {
     "NPD5" : T5
 }
 
+print(nonDim)
+
 
 ###################### GRAPHS ######################
 
 plt.figure()
-plt.plot(x, temperature)
+plt.plot(x, temperature, label="temperature")
 plt.xlabel("x")
 plt.ylabel("temperature")
 plt.grid(True, alpha=0.3)
 plt.legend()
 
 plt.figure()
-plt.plot(x,xVelocity)
-plt.plot(x_empty,xvel_empty)
+plt.plot(x,xVelocity, label="x-velocity in sample")
+plt.plot(x_empty,xvel_empty, label="x-velocity in empty")
 plt.scatter(
     x_ue, y_ue,
     s=80, marker="x", color="k", zorder=10,
