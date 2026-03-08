@@ -236,7 +236,7 @@ T5 = U_e / U_s
 x_e = x_mark
 beta_e = y_mark
 
-delta = x_s[-1] - x_e
+delta = bl
 U_t = xVelocity[:3].mean()
 U_e = y_ue
 U_s = U_t - U_e
@@ -244,7 +244,7 @@ U_s = U_t - U_e
 
 T1 = delta/R_B
 T2 = beta_e * R_B / U_t
-T3 = y_mark * R_B**2 / U_t
+T3 = y_zero * R_B**2 / U_t
 T4 = U_e/ U_t
 T5 = U_e / U_s
 
@@ -312,9 +312,6 @@ plt.xlabel("x")
 plt.ylabel("gradient")
 plt.legend()
 plt.grid(True, alpha=0.3)
-
-
-
 
 
 plt.show()
