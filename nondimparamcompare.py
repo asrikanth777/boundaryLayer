@@ -43,15 +43,16 @@ R_B = float(input("What is the radius of the sample body in meters?\n"))
 
 base = Path.cwd()
 
-column_names = ['50kw', '100kw', '200kw']
+column_names = ['50kw', '100kw', '150kw', '200kw']
 row_index = ['NDP1', 'NDP2', 'NDP3', 'NDP4', 'NDP5']   
 summary_df = pd.DataFrame(index=row_index, columns=column_names, dtype=float)
 
 
-folder_50kw_empty = input("folder with empty chamber at 50kW\n")
-folder_100kw_empty = input("folder with empty chamber at 100kw\n")
-folder_200kw_empty = input("folder with empty chamber at 200kw\n")
-folder_list_1 = [folder_50kw_empty, folder_100kw_empty, folder_200kw_empty]
+folder_50kw_sample = input("folder with sample at 50kW\n")
+folder_100kw_sample = input("folder with sample at 100kw\n")
+folder_150kw_sample = input("folder with sample at 150kw\n")
+folder_200kw_sample = input("folder with empty chamber at 200kw\n")
+folder_list_1 = [folder_50kw_sample, folder_100kw_sample, folder_150kw_sample, folder_200kw_sample]
 folders_list = []
 
 for a in folder_list:
