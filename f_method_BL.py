@@ -162,63 +162,41 @@ def find_inflection(x, grad_arr, tail_frac = 0.9):
     x_tail = x[side:]
     g_tail = g[side:]
 
-    # closest-to-zero (discrete)
-    idx0 = np.argmin(np.abs(g_tail))
-    location0 = x_tail[idx0]
-    yloc0 = g_tail[idx0]
-    thickness = x_tail[-1] - location0
-
     # largest positive value (discrete)
     max_idx = np.argmax(g_tail)
-    max_val = g_tail[max_idx]
-    max_loc = x_tail[max_idx]
-    thick1 = x_tail[-1] - max_loc
+    location = x_tail[max_idx]   # x position of max gradient
+    yloc = g_tail[max_idx]        # gradient value at that point
+    thickness = x_tail[-1] - location
 
-    return location0, yloc0, thickness, max_val, max_loc, thick1
+    return location, yloc, thickness
 
 
-loc, ylc, bl, mv, ml, bl1 = find_inflection(x_s, gs, tail_frac=0.9)
+loc, ylc, bl = find_inflection(x_s, gs, tail_frac=0.9)
 
 
 results = {
     "location": loc, 
     "Y-loc": ylc, 
     "bl_thickness - V": bl, 
-    "max_val": mv, 
-    "max_loc": ml, 
-    "bl_thickness - F" : bl1,
 }
 
 resultsPrint = {
     "location": f"{loc:6f}m", 
     "Y-loc": f"{ylc:6f}", 
-    "bl_thickness - V": f"{bl*1000:6f}mm", 
-    "max_loc": f"{ml:6f}m" ,
-    "max_val": f"{mv:6f}" , 
-    "bl_thickness - F" : f"{bl1*1000:6f}mm"
+    "bl_thickness - F": f"{bl*1000:6f}mm", 
 }
 
 x_zero = results["location"]
 y_zero = results["Y-loc"]
-x_max  = results["max_loc"]
-y_max  = results["max_val"]
 
 
-idx = np.argmin(np.abs(x_s - x_max))
-x_mark = x_s[idx]
-y_mark = y_s[idx]
+idx1 = np.argmin(np.abs(x - loc))
+x_ue = x[idx1]
+y_ue = xVelocity[idx1]
 
-idx2 = np.argmin(np.abs(x - loc))
-x_ue = x[idx2]
-y_ue = xVelocity[idx2]
-
-idx3 = np.argmin(np.abs(x - x_max))
-x_ue1 = x[idx3]
-y_ue1 = xVelocity[idx3]
-
-idx4 = np.argmin(np.abs(x_s - loc))
-x1_mark = x_s[idx4]
-y1_mark = y_s[idx4]
+idx2 = np.argmin(np.abs(x_s - loc))
+x_mark = x_s[idx2]
+y_mark = y_s[idx2]
 
 
 print(resultsPrint)
@@ -239,7 +217,7 @@ U_s = U_t - U_e
 
 T1 = delta/R_B
 T2 = beta_e * R_B / U_t
-T3 = mv * R_B**2 / U_t
+T3 = ylc * R_B**2 / U_t 
 T4 = U_e/ U_t
 T5 = U_e / U_s
 
@@ -249,7 +227,7 @@ nonDim = {
     "NDP2" : T2,
     "NDP3" : T3,
     "NDP4" : T4,
-    "NPD5" : T5
+    "NDP5" : T5
 }
 
 print(nonDim)
@@ -270,13 +248,9 @@ plt.plot(x_empty,xvel_empty, label="x-velocity in empty")
 plt.scatter(
     x_ue, y_ue,
     s=80, marker="x", color="k", zorder=10,
-    label="start of boundary layer - V"
-)
-plt.scatter(
-    x_ue1, y_ue1,
-    s=80, marker="o", color="k", zorder=10,
     label="start of boundary layer - F"
 )
+
 plt.xlabel("x")
 plt.ylabel("x-dir velocity")
 plt.grid(True, alpha=0.3)
@@ -288,11 +262,6 @@ plt.plot(x_s, y_s, label="dv/dy", lw=2, color="0.5")
 plt.scatter(
     x_mark, y_mark,
     s=80, marker="o", color="k", zorder=10, facecolors="none",
-    label="dv/dy at derivative peak x"
-)
-plt.scatter(
-    x1_mark, y1_mark,
-    s=80, marker="x", color="k", zorder=10,
     label="dv/dy at derivative peak x"
 )
 
@@ -313,24 +282,12 @@ plt.scatter(
     marker="x",
     color="k",
     zorder=10,
-    label="V-method"
-)
-plt.scatter(
-    x_max, y_max,
-    s=70,
-    marker="o",
-    facecolors="none",
-    edgecolors="k",
-    zorder=10,
     label="F-method"
 )
+
 plt.xlabel("x")
 plt.ylabel("gradient")
 plt.legend()
 plt.grid(True, alpha=0.3)
-
-
-
-
 
 plt.show()
