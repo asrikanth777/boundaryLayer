@@ -22,6 +22,9 @@ def getImport():
 
     return GroupDatasets(Input=object)
 
+# These are the current variable outputs from the simulation
+# Currently this is for a 2D axisym with no swirl
+# Change variable indexes as needed based on your simulation output
 H_index = 'H'
 M_index = 'M'
 T_index = 'T'
@@ -30,11 +33,13 @@ rho_index = 'rho'
 v_index = 'v'
 v_x_index = 'v_X'
 v_y_index = 'v_Y'
-window_size = 3
-window_2 = 15
+
+# Window sizes for smoothing functions
+# Kept at 5 because it smooths just well enough without 
+# losing much original data
+window_size = 5
 
 R_B = float(input("What is the radius of the sample body in meters?\n"))
-
 base = Path.cwd()
 name = input("folder with sample\n")
 folder = base / name
@@ -70,6 +75,7 @@ vts_readers  = [XMLStructuredGridReader(FileName=str(f)) for f in clean_vts]
 # renders them to use actions on them later
 renderView1 = GetActiveViewOrCreate('RenderView')
 
+# treats cell data as points to use in gradient calculations
 flowfield = getImport()
 cellDatatoPointData1 = CellDatatoPointData(Input=flowfield)
 cellDatatoPointData1.CellDataArraytoprocess = [H_index, M_index, T_index, p_index, rho_index, v_index]
@@ -78,18 +84,21 @@ cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(flowfield, renderView1)
 renderView1.Update()
 
+# using velocity components to create a vector for gradient calculations
 calculator1 = Calculator(Input=cellDatatoPointData1)
 calculator1.Function = f"{v_x_index}*iHat + {v_y_index}*jHat"
 calculator1Display = Show(calculator1, renderView1)
 Hide(cellDatatoPointData1, renderView1)
 renderView1.Update()
 
+# now here is the actual gradient calculation
 computeDerivatives1 = ComputeDerivatives(Input = calculator1)
 computeDerivatives1.Vectors = ['POINTS', 'Result']
 computeDerivatives1Display = Show(computeDerivatives1, renderView1)
 Hide(calculator1, renderView1)
 renderView1.Update()
 
+# uses new data generated and turns them into point data for plotting over line
 cellDatatoPointData2 = CellDatatoPointData(Input=computeDerivatives1)
 cellDatatoPointData2.CellDataArraytoprocess = ['ScalarGradient', 'VectorGradient']
 renderView1 = GetActiveViewOrCreate('RenderView')
@@ -97,6 +106,7 @@ cellDatatoPointData1Display = Show(cellDatatoPointData1, renderView1)
 Hide(computeDerivatives1, renderView1)
 renderView1.Update()
 
+# line plot from torch exit to just past sample boundary, adjust point2_x as needed 
 plotOverLine1 = PlotOverLine(Input=cellDatatoPointData2, Source='High Resolution Line Source')
 plotOverLine1.Source.Point1 = [0.4, 0, 0]
 plotOverLine1.Source.Point2 = [0.565, 0, 0]
@@ -105,16 +115,18 @@ plotOverLine1Display = Show(plotOverLine1, renderView1)
 
 ##############################################################################33
 
+# extracts data from line plot for data
 data = servermanager.Fetch(plotOverLine1)
 pts = ns.vtk_to_numpy(data.GetPoints().GetData())
 Points_0 = pts[:, 0]
 
-
+# gets coordinates and dv/dy from line
 point_data = data.GetPointData()
 vectGrad = point_data.GetArray("VectorGradient")
 vg = ns.vtk_to_numpy(vectGrad)          # shape (N, 9)
 VectorGradient_4 = vg[:, 4]                    # VectorGradient_4
 
+# temp and u-vel data
 tempData = point_data.GetArray(T_index)
 temp = ns.vtk_to_numpy(tempData)
 
@@ -122,8 +134,7 @@ v = point_data.GetArray(v_index)
 vNP = ns.vtk_to_numpy(v)
 vU = vNP[:, 0]
 
-import pandas as pd
-
+# makes dataframe and cleans up NaN data
 df = pd.DataFrame({
     "Points_0": Points_0,
     "VectorGradient_4": VectorGradient_4,
@@ -134,24 +145,31 @@ df = pd.DataFrame({
 df = df.dropna()
 df = df.reset_index(drop=True)
 
+# for finding second derivative
 x = df["Points_0"]
 y = df["VectorGradient_4"]
 temperature = df["T"]
 xVelocity = df["u"]
 
-
-df["dv_dy_smooth"] = df["VectorGradient_4"].rolling(5, center=True, min_periods=1).mean()
+# smooths data for visualization without compromising as mentioned before
+df["dv_dy_smooth"] = df["VectorGradient_4"].rolling(window_size, center=True, min_periods=1).mean()
 
 y_s = np.array(df["dv_dy_smooth"])
 x_s = np.array(x)
 
+# second derivative calculation using V-method
 grad = np.diff(y_s) / np.diff(x_s)
 grad = np.append(grad, grad[-1])
 df["grad_raw"] = grad
 
-df["grad_smooth"] = df["grad_raw"].rolling(5, center=True, min_periods=1).mean()
+df["grad_smooth"] = df["grad_raw"].rolling(window_size, center=True, min_periods=1).mean()
 gs = df["grad_smooth"]
 
+# finds both the maximum and zero-crossing point of the second derivative
+# there are two methods for finding boundary layer start location
+# going to do more research on which is more suitable
+# but there is another separate script that calculate just based on maximum of second derivative
+# this currently has been used more in academia
 def find_inflection(x, grad_arr, tail_frac = 0.9):
     x = np.asarray(x, dtype=float)
     g = np.asarray(grad_arr, dtype=float)
@@ -223,11 +241,14 @@ y1_mark = y_s[idx4]
 
 print(resultsPrint)
 
-
+# this is reading an empty chamber simulation with the same operating conditions
+# using the importing.py, it uses old files and creates a csv, which is then used here again
 df_empty = pd.read_csv("empty_chamber.csv")
 xvel_empty = df_empty["u"]
 x_empty = df_empty["Points_0"]
 
+
+# non dimensional parameter calculations
 x_e = x_mark
 beta_e = y_mark
 
